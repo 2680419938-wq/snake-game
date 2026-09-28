@@ -846,11 +846,19 @@ class GameScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     for (const [x, y, l, r] of LEVEL.soldiers) this.enemies.add(new SoldierEnemy(this, x, y, l, r));
     for (const [x, y] of LEVEL.turrets) this.enemies.add(new TurretEnemy(this, x, y));
-    for (const [x, y] of LEVEL.flyers) this.enemies.add(new FlyerEnemy(this, x, y));
+    for (const [x, y] of LEVEL.flyers) {
+      const f = new FlyerEnemy(this, x, y);
+      this.enemies.add(f);
+      f.body.setAllowGravity(false);   // 入组时组默认值会重开重力，需在入组后重新关闭
+    }
 
     /* ---- 道具 & 检查点 ---- */
     this.pickups = this.physics.add.group();
-    for (const [kind, x, y] of LEVEL.pickups) this.pickups.add(new PickupItem(this, x, y, kind));
+    for (const [kind, x, y] of LEVEL.pickups) {
+      const it = new PickupItem(this, x, y, kind);
+      this.pickups.add(it);
+      it.body.setAllowGravity(false);  // 同飞行怪：入组后重新关闭重力
+    }
     this.flags = this.physics.add.staticGroup();
     for (const [x, y] of LEVEL.checkpoints) {
       const f = this.flags.create(x, y, 'flag');
@@ -873,33 +881,52 @@ class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, CONFIG.LEVEL_WIDTH, 900);
     this.physics.world.setBoundsCollision(true, true, false, false);
 
-    /* ---- 碰撞矩阵（分组统一管理） ---- */
+    /* ---- 碰撞矩阵（分组统一管理） ----
+     * 注意：Phaser 3.87 起，组与单个精灵之间的碰撞/重叠回调实参顺序会随
+     * 内部配对方向翻转（不再保证与注册顺序一致），因此所有回调一律按
+     * 对象身份识别参数，不依赖传入顺序。 */
+    const isBullet = (o) => o instanceof Bullet;
     this.physics.add.collider(this.player, this.solids);
     this.physics.add.collider(this.player, this.oneWays);
     this.physics.add.collider(this.enemies, this.solids);
     this.physics.add.collider(this.enemies, this.oneWays);
     // 子弹撞墙湮灭
     this.physics.add.collider(this.playerBullets.group, this.solids,
-      (b) => { if (b.active) { this.spark.explode(3, b.x, b.y); b.kill(); } });
+      (o1, o2) => { const b = isBullet(o1) ? o1 : o2; if (b.active) { this.spark.explode(3, b.x, b.y); b.kill(); } });
     this.physics.add.collider(this.enemyBullets.group, this.solids,
-      (b) => { if (b.active) b.kill(); });
+      (o1, o2) => { const b = isBullet(o1) ? o1 : o2; if (b.active) b.kill(); });
     // 玩家子弹 → 敌人 / Boss
     this.physics.add.overlap(this.playerBullets.group, this.enemies,
-      (b, e) => { if (b.active && e.active) { e.takeHit(b); this.spark.explode(3, b.x, b.y); b.kill(); } });
+      (o1, o2) => {
+        const b = isBullet(o1) ? o1 : o2, e = o1 === b ? o2 : o1;
+        if (b.active && e.active) { e.takeHit(b); this.spark.explode(3, b.x, b.y); b.kill(); }
+      });
     this.physics.add.overlap(this.playerBullets.group, this.boss,
-      (b, boss) => { if (b.active && boss.spawned && !boss.dying) { boss.takeHit(b); this.spark.explode(3, b.x, b.y); b.kill(); } });
+      (o1, o2) => {
+        const b = isBullet(o1) ? o1 : o2, bo = o1 === b ? o2 : o1;
+        if (b.active && bo.spawned && !bo.dying) { bo.takeHit(b); this.spark.explode(3, b.x, b.y); b.kill(); }
+      });
     // 敌方火力 / 接触 → 玩家
     this.physics.add.overlap(this.enemyBullets.group, this.player,
-      (b, p) => { if (b.active && !p.isDead) { b.kill(); p.hurt(); } });
+      (o1, o2) => {
+        const b = isBullet(o1) ? o1 : o2, p = o1 === b ? o2 : o1;
+        if (b.active && !p.isDead) { b.kill(); p.hurt(); }
+      });
     this.physics.add.overlap(this.enemies, this.player,
-      (e, p) => { if (e.active && !p.isDead) p.hurt(); });
+      (o1, o2) => {
+        const p = o1 === this.player ? o1 : o2, e = o1 === p ? o2 : o1;
+        if (e.active && !p.isDead) p.hurt();
+      });
     this.physics.add.overlap(this.boss, this.player,
-      (boss, p) => { if (boss.spawned && !boss.dying && !p.isDead) p.hurt(); });
+      (o1, o2) => {
+        const p = o1 === this.player ? o1 : o2, bo = o1 === p ? o2 : o1;
+        if (bo.spawned && !bo.dying && !p.isDead) p.hurt();
+      });
     // 道具 & 检查点
     this.physics.add.overlap(this.pickups, this.player,
-      (item) => { if (item.active) this.applyPickup(item); });
+      (o1, o2) => { const item = o1 === this.player ? o2 : o1; if (item.active) this.applyPickup(item); });
     this.physics.add.overlap(this.flags, this.player,
-      (flag) => this.tryActivateCheckpoint(flag));
+      (o1, o2) => { const flag = o1 === this.player ? o2 : o1; this.tryActivateCheckpoint(flag); });
 
     /* ---- 粒子发射器（统一预建，手动 explode） ---- */
     this.muzzle = this.add.particles(0, 0, 'dot', {
