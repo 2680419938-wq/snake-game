@@ -19,9 +19,10 @@
    ```bash
    python -m http.server 8090   # 在项目目录下执行，然后访问 http://127.0.0.1:8090
    ```
-3. **克隆仓库**：
+3. **克隆仓库**（Gitee / GitHub 双托管）：
    ```bash
-   git clone https://gitee.com/lilhand/snake-game.git
+   git clone https://gitee.com/lilhand/snake-game.git            # Gitee
+   git clone https://github.com/2680419938-wq/snake-game.git    # GitHub
    ```
 
 ## 玩法
