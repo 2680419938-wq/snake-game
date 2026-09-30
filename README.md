@@ -2,7 +2,27 @@
 
 一个用 **Phaser 3** 制作的魂斗罗风格横版平台射击游戏。单个 `index.html` 文件、零构建、零外部资源 —— **双击即玩**。
 
+![主菜单](docs/menu.png)
+
+| 游戏实战 | Boss 战 |
+| :---: | :---: |
+| ![实战](docs/gameplay.png) | ![Boss战](docs/boss.png) |
+
 > 运行需要联网加载 Phaser（cdnjs CDN）；所有画面由 `Graphics.generateTexture()` 程序化生成，音效由 Web Audio API 实时合成。
+
+## 快速开始
+
+任选其一：
+
+1. **双击即玩**：直接双击 `index.html` 用浏览器打开（需联网）。
+2. **本地服务器**（推荐，最高分记录可正常保存）：
+   ```bash
+   python -m http.server 8090   # 在项目目录下执行，然后访问 http://127.0.0.1:8090
+   ```
+3. **克隆仓库**：
+   ```bash
+   git clone https://gitee.com/lilhand/snake-game.git
+   ```
 
 ## 玩法
 
@@ -34,6 +54,22 @@
 - 程序化纹理生成（Boot 场景统一生成）
 - Web Audio API 合成音效（射击 / 爆炸 / 受击 / 拾取 / 检查点）
 - 场景：Boot → Menu → Game → Pause / GameOver / Win
+
+## 更新日志
+
+### v1.1（2026-09）
+
+- **修复卡死**：Phaser 3.87 起组与单精灵的碰撞回调实参顺序会翻转，原写法取反参后抛异常并终止主循环（表现为碰怪 / 碰武器道具 / 中弹时游戏卡死）。现全部回调按对象身份识别参数。
+- **修复瞬移**：物理组默认值会在入组时重开重力，导致飞行怪坠地、武器道具加速下坠穿地板。现入组后重新关闭重力。
+- 补充 README、游戏截图与开源许可证。
+
+### v1.0
+
+- 首个版本：完整关卡、三种敌人、两阶段 Boss、三种武器、检查点复活、本地最高分记录。
+
+## 开源许可
+
+[MIT](LICENSE) © lilhand
 
 ---
 Made with Phaser 3 · 署名 lilhand
